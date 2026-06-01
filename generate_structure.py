@@ -36,6 +36,7 @@ def generate_tree(root_dir: Path) -> list:
     """
     生成目录树形结构的字符串列表。
     使用ASCII字符绘制树形图，目录名后加斜杠。
+    【已修改】自动跳过以 . 开头的隐藏文件夹
     """
     root = root_dir.resolve()
     if not root.exists() or not root.is_dir():
@@ -44,6 +45,10 @@ def generate_tree(root_dir: Path) -> list:
     lines = []
 
     def _walk_dir(path: Path, prefix: str = '', is_last: bool = True):
+        # 跳过以 . 开头的文件夹
+        if path.is_dir() and path.name.startswith('.'):
+            return
+        
         # 输出当前项（目录或文件）
         connector = '└── ' if is_last else '├── '
         lines.append(f"{prefix}{connector}{path.name}{'/' if path.is_dir() else ''}")
@@ -66,11 +71,16 @@ def generate_tree(root_dir: Path) -> list:
     return lines
 
 def collect_text_files(root_dir: Path) -> list:
-    """递归收集所有文本文件的路径列表"""
+    """递归收集所有文本文件的路径列表【已修改】跳过.开头的隐藏文件夹"""
     text_files = []
-    for file_path in root_dir.rglob('*'):
-        if file_path.is_file() and is_text_file(file_path):
-            text_files.append(file_path)
+    # 递归遍历，跳过以 . 开头的目录
+    for item in root_dir.rglob('*'):
+        # 跳过隐藏文件夹
+        if item.is_dir() and item.name.startswith('.'):
+            continue
+        # 只处理文件
+        if item.is_file() and is_text_file(item):
+            text_files.append(item)
     return text_files
 
 def main():
@@ -88,7 +98,7 @@ def main():
 
     # 生成树形结构
     try:
-        tree_lines = generate_tree(folder_path)   # generate_tree 内部也会 resolve，但传入绝对路径更安全
+        tree_lines = generate_tree(folder_path)
     except Exception as e:
         print(f"生成树形结构失败: {e}", file=sys.stderr)
         sys.exit(1)
@@ -108,7 +118,6 @@ def main():
 
         md.write("# 📄 文本文件内容\n\n")
         for idx, file_path in enumerate(text_files, 1):
-            # 现在 file_path 和 folder_path 都是绝对路径，可以正常计算相对路径
             rel_path = file_path.relative_to(folder_path)
             md.write(f"## {rel_path}\n\n")
 
